@@ -1,29 +1,63 @@
 package gui;
 
+import order.Order;
+
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 public class CafeOrderingSystemGUI {
     static void main(String[] args) {
         JFrame frame = new JFrame("Cafe Ordering System");
+        JPanel panel1 = new JPanel();
+        panel1.setLayout(new FlowLayout(FlowLayout.LEFT));
+        JLabel nameLabel = new JLabel("Name:");
+        JTextField nameField = new JTextField(10);
+        JLabel contactLabel = new JLabel("Contact Number:");
+        JTextField contactField = new JTextField(10);
+//        Restrict to numbers only
+        contactField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                char c = e.getKeyChar();
+
+                if (!Character.isDigit(c)) {
+                    e.consume();
+                }
+            }
+        });
+
+        panel1.add(nameLabel);
+        panel1.add(nameField);
+        panel1.add(contactLabel);
+        panel1.add(contactField);
+
+        JPanel panel2 = new JPanel();
+        panel2.setLayout(new FlowLayout(FlowLayout.LEFT));
         JLabel itemLabel = new JLabel("Item Name:");
         JTextField itemField = new JTextField(10);
-
         JLabel quantityLabel = new JLabel("Quantity:");
         JTextField quantityField = new JTextField(5);
+        panel2.add(itemLabel);
+        panel2.add(itemField);
+        panel2.add(quantityLabel);
+        panel2.add(quantityField);
 
+        JPanel panel3 = new JPanel();
+        panel3.setLayout(new FlowLayout(FlowLayout.CENTER));
         JButton addButton = new JButton("Add to Order");
         JButton clearButton = new JButton("Clear");
+        panel3.add(addButton);
+        panel3.add(clearButton);
 
-        frame.setLayout(new FlowLayout());
-        frame.add(itemLabel);
-        frame.add(itemField);
-        frame.add(quantityLabel);
-        frame.add(quantityField);
-        frame.add(addButton);
-        frame.add(clearButton);
+        frame.setLayout(new GridLayout(3, 1));
+        frame.add(panel1);
+        frame.add(panel2);
+        frame.add(panel3);
 
-        frame.setSize(350,200);
+
+        frame.setSize(400,200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
         frame.setLocationRelativeTo(null);
@@ -31,6 +65,8 @@ public class CafeOrderingSystemGUI {
 
         addButton.addActionListener(_ -> {
            try {
+               String name = nameField.getText();
+               String contact = contactField.getText();
                String item = itemField.getText().trim();
                if (item.isEmpty()) {
                    throw new IllegalArgumentException("Please enter an item name.");
@@ -42,9 +78,9 @@ public class CafeOrderingSystemGUI {
                }
 
                double price = 150.00;
-               double total = price * quantity;
+               double total = Order.calculateTotalAmount(quantity, price);
 
-               JOptionPane.showMessageDialog(frame, "Item: " + item + "\nQuantity: " + quantity + "\nTotal: ₱" + total, "Order Summary", JOptionPane.INFORMATION_MESSAGE);
+               JOptionPane.showMessageDialog(frame, "Name: " + name + "\nContact: " + contact + "\nItem: " + item + "\nQuantity: " + quantity + "\nTotal: ₱" + total, "Order Summary", JOptionPane.INFORMATION_MESSAGE);
            } catch (NumberFormatException ex) {
                JOptionPane.showMessageDialog(frame, "Invalid quantity! Please enter a number.", "Error", JOptionPane.ERROR_MESSAGE);
            } catch (IllegalArgumentException ex) {
@@ -53,6 +89,8 @@ public class CafeOrderingSystemGUI {
         });
 
         clearButton.addActionListener(_ -> {
+            nameField.setText("");
+            contactField.setText("");
             itemField.setText("");
             quantityField.setText("");
         });
