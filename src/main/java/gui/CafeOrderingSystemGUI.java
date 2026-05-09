@@ -1,11 +1,13 @@
 package gui;
 
 import order.Order;
+import payment.Payment;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.Objects;
 
 public class CafeOrderingSystemGUI {
     static void main(String[] args) {
@@ -45,19 +47,32 @@ public class CafeOrderingSystemGUI {
         panel2.add(quantityField);
 
         JPanel panel3 = new JPanel();
-        panel3.setLayout(new FlowLayout(FlowLayout.CENTER));
+        panel3.setLayout(new FlowLayout(FlowLayout.LEFT));
+        JLabel paymentMethodLabel = new JLabel("Payment Method:");
+        String[] paymentMethods = {"Cash", "G-Cash", "Card"};
+        JComboBox<String> paymentMethodField = new JComboBox<>(paymentMethods);
+        JLabel amountReceivedLabel = new JLabel("Amount Received:");
+        JTextField amountReceivedField = new JTextField(10);
+        panel3.add(paymentMethodLabel);
+        panel3.add(paymentMethodField);
+        panel3.add(amountReceivedLabel);
+        panel3.add(amountReceivedField);
+
+        JPanel panel4 = new JPanel();
+        panel4.setLayout(new FlowLayout(FlowLayout.CENTER));
         JButton addButton = new JButton("Add to Order");
         JButton clearButton = new JButton("Clear");
-        panel3.add(addButton);
-        panel3.add(clearButton);
+        panel4.add(addButton);
+        panel4.add(clearButton);
 
-        frame.setLayout(new GridLayout(3, 1));
+        frame.setLayout(new GridLayout(4, 1));
         frame.add(panel1);
         frame.add(panel2);
         frame.add(panel3);
+        frame.add(panel4);
 
 
-        frame.setSize(400,200);
+        frame.setSize(500,200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
         frame.setLocationRelativeTo(null);
@@ -68,6 +83,7 @@ public class CafeOrderingSystemGUI {
                String name = nameField.getText();
                String contact = contactField.getText();
                String item = itemField.getText().trim();
+               String paymentMethod = Objects.requireNonNull(paymentMethodField.getSelectedItem()).toString();
                if (item.isEmpty()) {
                    throw new IllegalArgumentException("Please enter an item name.");
                }
@@ -80,7 +96,11 @@ public class CafeOrderingSystemGUI {
                double price = 150.00;
                double total = Order.calculateTotalAmount(quantity, price);
 
-               JOptionPane.showMessageDialog(frame, "Name: " + name + "\nContact: " + contact + "\nItem: " + item + "\nQuantity: " + quantity + "\nTotal: ₱" + total, "Order Summary", JOptionPane.INFORMATION_MESSAGE);
+               double amountReceived = Integer.parseInt(amountReceivedField.getText().trim());
+               Payment payment = new Payment(paymentMethod, amountReceived);
+               payment.processPayment(total);
+
+               JOptionPane.showMessageDialog(frame, "Name: " + name + "\nContact: " + contact + "\nItem: " + item + "\nQuantity: " + quantity + "\nTotal: ₱" + total + "\nPayment Method: " + payment.getPaymentMethod() + "\nAmount Received: " + payment.getAmountReceived() + "\nChange: " + payment.getChangeDue(), "Order Summary", JOptionPane.INFORMATION_MESSAGE);
            } catch (NumberFormatException ex) {
                JOptionPane.showMessageDialog(frame, "Invalid quantity! Please enter a number.", "Error", JOptionPane.ERROR_MESSAGE);
            } catch (IllegalArgumentException ex) {
@@ -93,6 +113,7 @@ public class CafeOrderingSystemGUI {
             contactField.setText("");
             itemField.setText("");
             quantityField.setText("");
+            amountReceivedField.setText("");
         });
     }
 }

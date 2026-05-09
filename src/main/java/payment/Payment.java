@@ -14,6 +14,18 @@ public class Payment {
         changeDue = amountReceived - total;
     }
 
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public double getAmountReceived() {
+        return amountReceived;
+    }
+
+    public double getChangeDue() {
+        return changeDue;
+    }
+
     public void displayPaymentInfo() {
         System.out.println("Payment Method: " + paymentMethod);
         System.out.println("Amount Received: ₱" + amountReceived);
