@@ -72,60 +72,28 @@ public class CafeOrderingSystemGUI {
         frame.add(buttonPanel);
 
         // --- Step 1: Create the orders.txt file when program runs ---
-        try {
-            File file = new File(ORDER_FILE.toString());
-            if (file.createNewFile()) {
-                System.out.println("File created: " + file.getName());
-            } else {
-                System.out.println("File already exists.");
-            }
-        } catch (IOException e) {
-            System.out.println("An error occurred while creating the file.");
-        }
+        initOrderFile(frame);
 
-        // --- Step 2: Add button action (incomplete) ---
+        // Add button
         addButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String item = itemField.getText().trim();
                 String quantity = quantityField.getText().trim();
 
-                String errorMsg = errors(item, quantity);
+                String errorMsg = validate(item, quantity);
 
                 if (!errorMsg.isEmpty()) {
                     JOptionPane.showMessageDialog(frame, errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                // Validate quantity
-                try {
-                    int qty = Integer.parseInt(quantity);
-
-                    if (qty <= 0) {
-                        throw new NumberFormatException();
-                    }
-                } catch (NumberFormatException nfe) {
-                    JOptionPane.showMessageDialog(
-                            frame,
-                            "Quantity must be a positive number.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    return;
-                }
-
-                // Write items to text file
-                try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE.toFile(), true))) {
-                    bw.write("============================\n");
-                    bw.write("Item Name: " + item + "\nQuantity: " + quantity + "\n");
-                    JOptionPane.showMessageDialog(frame, item + " added to orders.txt", "Success",  JOptionPane.INFORMATION_MESSAGE);
-                    itemField.setText("");
-                    quantityField.setText("");
-                } catch (IOException ioe) {
-                    JOptionPane.showMessageDialog(frame, "An error occurred while writing the file.");
-                }
+                writeOrder(frame, item, quantity);
+                itemField.setText("");
+                quantityField.setText("");
             }
         });
 
+        // Clear button
         clearButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 itemField.setText("");
@@ -133,35 +101,10 @@ public class CafeOrderingSystemGUI {
             }
         });
 
+        // View order button
         viewOrderButton.addActionListener(_ -> {
-            StringBuilder orders = new StringBuilder();
-
-            try (BufferedReader br = new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
-                String line;
-                String item = null;
-                String quantity;
-
-                while ((line = br.readLine()) != null) {
-                    if (line.startsWith("Item Name: ")) {
-                        item = line.replace("Item Name: ", "").trim();
-                    }
-
-                    if (line.startsWith("Quantity: ")) {
-                        quantity = line.replace("Quantity: ", "").trim();
-
-                        orders.append("============================\n").append("Item Name: ").append(item).append("\n").append("Quantity: ").append(quantity).append("\n");
-                    }
-                }
-
-                if (orders.isEmpty()) {
-                    orders.append("No items found");
-                }
-
-                JOptionPane.showMessageDialog(frame, orders.toString(), "Success", JOptionPane.INFORMATION_MESSAGE);
-
-            } catch (IOException ioe) {
-                JOptionPane.showMessageDialog(frame, "An error occurred while reading the file.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            String orders = readOrders(frame);
+            JOptionPane.showMessageDialog(frame, orders, "Current Orders", JOptionPane.INFORMATION_MESSAGE);
         });
 
         frame.setSize(400, 200);
@@ -171,7 +114,64 @@ public class CafeOrderingSystemGUI {
         frame.setVisible(true);
     }
 
-    private static String errors(String itemField, String quantityField) {
+    // File operations
+    private static void initOrderFile(JFrame frame) {
+        try {
+            File file = new File(ORDER_FILE.toString());
+
+            if (file.createNewFile()) {
+                System.out.println("File created: " + file.getName());
+            } else {
+                System.out.println("File already exists.");
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(frame, "Could not initialize orders file.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static void writeOrder(JFrame frame, String item, String quantity) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE.toFile()))) {
+            bw.write("============================\nItem: " + item + "\nQuantity: " + quantity + "\n" );
+        } catch (IOException ioe) {
+            JOptionPane.showMessageDialog(frame, "Failed to save order", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static String readOrders(JFrame frame) {
+        StringBuilder orders = new StringBuilder();
+        orders.append(String.format("%-25s %s%n", "Item", "Qty"));
+        orders.append("-".repeat(35)).append("\n");
+
+        try (BufferedReader br = new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
+            String line;
+            String item = null;
+            int count = 0;
+
+            while ((line = br.readLine()) != null) {
+                if (line.startsWith("Item: ")) {
+                    item = line.replace("Item: ", "").trim();
+                } else if (line.startsWith("Quantity: ") && item != null) {
+                    String quantity = line.replace("Quantity: ", "").trim();
+                    orders.append(String.format("%-25s %s%n", item, quantity));
+                    item = null; // reset for next block
+                    count++;
+                }
+            }
+
+            if (count == 0) return "No orders yet.";
+
+            orders.append("-".repeat(35));
+            orders.append(String.format("%n%-25s %d item(s)", "Total:", count));
+
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(frame, "Failed to read orders.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+
+        return orders.toString();
+    }
+
+    // Validation
+    private static String validate(String itemField, String quantityField) {
         StringBuilder sb = new StringBuilder();
 
         if (itemField.isEmpty()) {
@@ -180,7 +180,16 @@ public class CafeOrderingSystemGUI {
 
         if (quantityField.isEmpty()) {
             sb.append("Please enter a quantity.");
+        } else {
+            try {
+                int qty = Integer.parseInt(quantityField);
+                if (qty <= 0) throw new NumberFormatException();
+
+            } catch (NumberFormatException e) {
+                sb.append("Quantity must be a positive whole number.");
+            }
         }
+
         return sb.toString();
     }
 }
