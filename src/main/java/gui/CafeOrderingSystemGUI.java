@@ -61,7 +61,7 @@ public class CafeOrderingSystemGUI {
 
         JButton addButton = new JButton("Add to Order");
         JButton clearButton = new JButton("Clear");
-        JButton viewOrderButton = new JButton("View Order");
+        JButton viewOrderButton = new JButton("View Orders");
 
         buttonPanel.add(addButton);
         buttonPanel.add(clearButton);
@@ -81,15 +81,18 @@ public class CafeOrderingSystemGUI {
                 String quantity = quantityField.getText().trim();
 
                 String errorMsg = validate(item, quantity);
-
                 if (!errorMsg.isEmpty()) {
                     JOptionPane.showMessageDialog(frame, errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                writeOrder(frame, item, quantity);
-                itemField.setText("");
-                quantityField.setText("");
+                if (writeOrder(item, quantity)) {
+                    JOptionPane.showMessageDialog(frame, "\"" + item + "\" added to order.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    itemField.setText("");
+                    quantityField.setText("");
+                } else {
+                    JOptionPane.showMessageDialog(frame, "Failed to save order.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
 
@@ -103,8 +106,12 @@ public class CafeOrderingSystemGUI {
 
         // View order button
         viewOrderButton.addActionListener(_ -> {
-            String orders = readOrders(frame);
-            JOptionPane.showMessageDialog(frame, orders, "Current Orders", JOptionPane.INFORMATION_MESSAGE);
+            String orders = readOrders();
+            if (orders == null) {
+                JOptionPane.showMessageDialog(frame, "Failed to read orders.", "Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(frame, orders, "Current Orders", JOptionPane.INFORMATION_MESSAGE);
+            }
         });
 
         frame.setSize(400, 200);
@@ -129,18 +136,19 @@ public class CafeOrderingSystemGUI {
         }
     }
 
-    private static void writeOrder(JFrame frame, String item, String quantity) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE.toFile()))) {
+    private static boolean writeOrder(String item, String quantity) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE.toFile(), true))) {
             bw.write("============================\nItem: " + item + "\nQuantity: " + quantity + "\n" );
+            return true;
         } catch (IOException ioe) {
-            JOptionPane.showMessageDialog(frame, "Failed to save order", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
     }
 
-    private static String readOrders(JFrame frame) {
+    private static String readOrders() {
         StringBuilder orders = new StringBuilder();
-        orders.append(String.format("%-25s %s%n", "Item", "Qty"));
-        orders.append("-".repeat(35)).append("\n");
+        orders.append(String.format("%-20s %s%n", "Item", "Qty"));
+        orders.append("-".repeat(30)).append("\n");
 
         try (BufferedReader br = new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
             String line;
@@ -152,22 +160,21 @@ public class CafeOrderingSystemGUI {
                     item = line.replace("Item: ", "").trim();
                 } else if (line.startsWith("Quantity: ") && item != null) {
                     String quantity = line.replace("Quantity: ", "").trim();
-                    orders.append(String.format("%-25s %s%n", item, quantity));
-                    item = null; // reset for next block
+                    orders.append(String.format("%-20s %s%n", item, quantity));
+                    item = null;
                     count++;
                 }
             }
 
             if (count == 0) return "No orders yet.";
 
-            orders.append("-".repeat(35));
-            orders.append(String.format("%n%-25s %d item(s)", "Total:", count));
+            orders.append("-".repeat(30));
+            orders.append(String.format("%n%-20s %d item(s)", "Total:", count));
+            return orders.toString();
 
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(frame, "Failed to read orders.", "Error", JOptionPane.ERROR_MESSAGE);
+            return null; // caller handles the error dialog
         }
-
-        return orders.toString();
     }
 
     // Validation
