@@ -1,16 +1,10 @@
 package gui;
 
-import order.Order;
-import payment.Payment;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -67,9 +61,11 @@ public class CafeOrderingSystemGUI {
 
         JButton addButton = new JButton("Add to Order");
         JButton clearButton = new JButton("Clear");
+        JButton viewOrderButton = new JButton("View Order");
 
         buttonPanel.add(addButton);
         buttonPanel.add(clearButton);
+        buttonPanel.add(viewOrderButton);
 
         frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));
         frame.add(mainPanel);
@@ -97,8 +93,27 @@ public class CafeOrderingSystemGUI {
 
                 if (!errorMsg.isEmpty()) {
                     JOptionPane.showMessageDialog(frame, errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
 
+                // Validate quantity
+                try {
+                    int qty = Integer.parseInt(quantity);
+
+                    if (qty <= 0) {
+                        throw new NumberFormatException();
+                    }
+                } catch (NumberFormatException nfe) {
+                    JOptionPane.showMessageDialog(
+                            frame,
+                            "Quantity must be a positive number.",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
+                // Write items to text file
                 try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE.toFile(), true))) {
                     bw.write("============================\n");
                     bw.write("Item Name: " + item + "\nQuantity: " + quantity + "\n");
@@ -115,6 +130,37 @@ public class CafeOrderingSystemGUI {
             public void actionPerformed(ActionEvent e) {
                 itemField.setText("");
                 quantityField.setText("");
+            }
+        });
+
+        viewOrderButton.addActionListener(_ -> {
+            StringBuilder orders = new StringBuilder();
+
+            try (BufferedReader br = new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
+                String line;
+                String item = null;
+                String quantity;
+
+                while ((line = br.readLine()) != null) {
+                    if (line.startsWith("Item Name: ")) {
+                        item = line.replace("Item Name: ", "").trim();
+                    }
+
+                    if (line.startsWith("Quantity: ")) {
+                        quantity = line.replace("Quantity: ", "").trim();
+
+                        orders.append("============================\n").append("Item Name: ").append(item).append("\n").append("Quantity: ").append(quantity).append("\n");
+                    }
+                }
+
+                if (orders.isEmpty()) {
+                    orders.append("No items found");
+                }
+
+                JOptionPane.showMessageDialog(frame, orders.toString(), "Success", JOptionPane.INFORMATION_MESSAGE);
+
+            } catch (IOException ioe) {
+                JOptionPane.showMessageDialog(frame, "An error occurred while reading the file.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
