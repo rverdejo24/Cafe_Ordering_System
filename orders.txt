@@ -1,8 +1,0 @@
-
-============================
-Item Name: Kuronami Phantom
-Quantity: 1
-
-============================
-Item Name: Forsaken Vandal
-Quantity: 1
