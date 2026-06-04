@@ -149,9 +149,46 @@ public class CafeOrderingSystemGUI {
         });
 
         // Compute Sales
-        computeSalesButton.addActionListener( _ -> {});
+        computeSalesButton.addActionListener( _ -> {
+            List<Double> totals = new ArrayList<>();
 
-        frame.setSize(400, 200);
+            List<Order> orders = readOrders();
+
+            try {
+                for (Order order : orders) {
+                    totals.add(order.total());
+                }
+
+                double totalSales = computeTotalSales(totals);
+                double averageSale = computeAverageSale(totals);
+                double discount = computeDiscount(totalSales);
+                double finalAmount = totalSales - discount;
+
+
+                JTextArea output = new JTextArea();
+                output.append("=== Café Sales Summary ===\n");
+                for (Order order : orders) {
+                    output.append(order.item() + " x " + order.quantity() + " = ₱" + order.total() + "\n");
+                }
+                output.append("--------------------------------\n");
+                output.append("Total Sales: ₱" + totalSales + "\n");
+                output.append("Average Sale: ₱" + averageSale + "\n");
+                output.append("Discount: ₱" + discount + "\n");
+                output.append("Final Amount: ₱" + finalAmount + "\n\n");
+
+                JOptionPane.showMessageDialog(
+                        null, new JScrollPane(output),
+                        "Sales Computation", JOptionPane.INFORMATION_MESSAGE
+                );
+
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(
+                        null, "Error reading file: " + e.getMessage()
+                );
+            }
+        });
+
+        frame.setSize(500, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
@@ -170,7 +207,7 @@ public class CafeOrderingSystemGUI {
                 }
                 System.out.println("File created: " + file.getName());
             } else {
-                System.out.println("File already exists.");
+                System.out.println("Loading data from csv file.");
             }
         } catch (IOException e) {
             JOptionPane.showMessageDialog(frame, "Could not initialize orders file.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -313,6 +350,7 @@ public class CafeOrderingSystemGUI {
         table.getColumnModel().getColumn(1).setCellRenderer(rightAlign); // Qty
         table.getColumnModel().getColumn(2).setCellRenderer(rightAlign); // Unit Price
         table.getColumnModel().getColumn(3).setCellRenderer(rightAlign); // Total
+        table.getColumnModel().getColumn(4).setCellRenderer(rightAlign); // Date
 
         // Column widths
         table.getColumnModel().getColumn(0).setPreferredWidth(180);
@@ -376,5 +414,27 @@ public class CafeOrderingSystemGUI {
         }
         tokens.add(sb.toString());
         return tokens.toArray(new String[0]);
+    }
+
+    // Computation logic
+    // Adds up all order totals
+    private static double computeTotalSales(List<Double> totals) {
+        double total = 0;
+        for (double t : totals)
+            total += t;
+        return total;
+    }
+
+    // Calculates average sale value
+    private static double computeAverageSale(List<Double> totals) {
+        return computeTotalSales(totals) / totals.size();
+    }
+
+    // Applies a 10% discount if total sales exceed ₱1000
+    private static double computeDiscount(double totalSales) {
+        if (totalSales >= 1000)
+            return totalSales * 0.10; // 10% discount
+        else
+            return 0;
     }
 }
