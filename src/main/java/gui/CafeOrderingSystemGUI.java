@@ -1,5 +1,7 @@
 package gui;
 
+import order.Order;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -13,6 +15,8 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class CafeOrderingSystemGUI {
@@ -90,10 +94,12 @@ public class CafeOrderingSystemGUI {
         JButton addButton = new JButton("Add to Order");
         JButton clearButton = new JButton("Clear");
         JButton viewOrderButton = new JButton("View Orders");
+        JButton computeSalesButton = new JButton("Compute Sales");
 
         buttonPanel.add(addButton);
         buttonPanel.add(clearButton);
         buttonPanel.add(viewOrderButton);
+        buttonPanel.add(computeSalesButton);
 
         frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));
         frame.add(mainPanel);
@@ -142,6 +148,9 @@ public class CafeOrderingSystemGUI {
             showOrdersTable(frame);
         });
 
+        // Compute Sales
+        computeSalesButton.addActionListener( _ -> {});
+
         frame.setSize(400, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
@@ -182,47 +191,66 @@ public class CafeOrderingSystemGUI {
         }
     }
 
-    private static void readOrders(DefaultTableModel tableModel, JLabel totalLabel) {
-        tableModel.setRowCount(0); // clear before reload
+    private static List<Order> readOrders() {
+        List<Order> orders = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
             String line;
             boolean firstLine = true;
-            double grandTotal = 0;
-            int count = 0;
 
             while ((line = br.readLine()) != null) {
-                if (firstLine) { firstLine = false; continue; } // skip header
+                if (firstLine) {
+                    firstLine = false;
+                    continue;
+                } // skip header
+
                 if (line.isBlank()) continue;
 
                 String[] orderData = splitCsvLine(line);
                 if (orderData.length < 4) continue; // skip malformed rows
 
+                int orderNumber = (int) (Math.random() * 1000000);
                 String item     = orderData[0];
                 int quantity    = Integer.parseInt(orderData[1].trim());
                 double price    = Double.parseDouble(orderData[2].trim());
+                double total    = Order.calculateTotalAmount(quantity, price);
                 String date     = orderData[3].trim();
-                double total    = quantity * price;
 
-                tableModel.addRow(new Object[]{
-                        item,
-                        quantity,
-                        String.format("₱%.2f", price),
-                        String.format("₱%.2f", total),
-                        date
-                });
-
-                grandTotal += total;
-                count++;
+                Order order = new Order(orderNumber, item, quantity, price, total, date);
+                orders.add(order);
             }
-
-            totalLabel.setText(String.format("Grand Total: ₱%.2f   (%d order%s)",
-                    grandTotal, count, count == 1 ? "" : "s"));
 
         } catch (IOException e) {
             JOptionPane.showMessageDialog(null, "Failed to read orders: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
+
+        return orders;
+    }
+
+    // Add to table
+    private static void addOrdersToTable(DefaultTableModel tableModel, JLabel totalLabel) {
+        tableModel.setRowCount(0);
+        int count = 0;
+        double grandTotal = 0;
+
+        List<Order> orders = readOrders();
+
+        for (Order order : orders) {
+            tableModel.addRow(new Object[]{
+                    order.item(),
+                    order.quantity(),
+                    String.format("₱%.2f", order.price()),
+                    String.format("₱%.2f", Order.calculateTotalAmount(order.quantity(), order.price())),
+                    order.date()
+            });
+
+            grandTotal += Order.calculateTotalAmount(order.quantity(), order.price());
+            count++;
+        }
+
+        totalLabel.setText(String.format("Grand Total: ₱%.2f   (%d order%s)",
+                grandTotal, count, count == 1 ? "" : "s"));
     }
 
     // Validation
@@ -303,7 +331,7 @@ public class CafeOrderingSystemGUI {
 
         JButton refreshButton = new JButton("↻  Refresh");
         refreshButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        refreshButton.addActionListener(e -> readOrders(tableModel, totalLabel));
+        refreshButton.addActionListener(e -> addOrdersToTable(tableModel, totalLabel));
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -321,7 +349,7 @@ public class CafeOrderingSystemGUI {
         tableFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         // Load data immediately on open
-        readOrders(tableModel, totalLabel);
+        addOrdersToTable(tableModel, totalLabel);
 
         tableFrame.setVisible(true);
     }

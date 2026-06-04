@@ -7,8 +7,7 @@ public class Main {
         Customer person1 = new Customer("Ann", "09194158866");
         person1.placeOrder();
 
-        Order order1 = new Order();
-        double total = order1.calculateTotalAmount(5, 10);
+        double total = Order.calculateTotalAmount(5, 10);
 //        order1.printReceipt();
 
         double amountReceived = 100;
