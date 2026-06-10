@@ -7,15 +7,14 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 
@@ -23,9 +22,14 @@ public class CafeOrderingSystemGUI {
     public static final Path ORDER_FILE = Paths.get("orders.csv");
     private static final String CSV_HEADER = "Item,Quantity,Price,Date";
     public static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy H:mm");
+    public static ArrayList<String> menuItems = new ArrayList<>();
+    public static HashSet<String> menuSet = new HashSet<>();
 
     public static void main(String[] args) {
+        System.out.println(Arrays.toString(args));
         JFrame frame = new JFrame("Café Ordering System");
+
+        loadMenu(frame, menuItems, menuSet);
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
         GridBagConstraints mainPanelConstraints = new GridBagConstraints();
@@ -92,12 +96,16 @@ public class CafeOrderingSystemGUI {
         JPanel buttonPanel = new JPanel(new FlowLayout());
 
         JButton addButton = new JButton("Add to Order");
+        JButton deleteButton = new JButton("Delete Menu");
         JButton clearButton = new JButton("Clear");
+        JButton viewMenuButton = new JButton("View Menu");
         JButton viewOrderButton = new JButton("View Orders");
         JButton computeSalesButton = new JButton("Compute Sales");
 
         buttonPanel.add(addButton);
+        buttonPanel.add(deleteButton);
         buttonPanel.add(clearButton);
+        buttonPanel.add(viewMenuButton);
         buttonPanel.add(viewOrderButton);
         buttonPanel.add(computeSalesButton);
 
@@ -109,44 +117,52 @@ public class CafeOrderingSystemGUI {
         initOrderFile(frame);
 
         // Add button
-        addButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String item = itemField.getText().trim();
-                String quantityText = quantityField.getText().trim();
-                String priceText = priceField.getText().trim();
+        addButton.addActionListener(_ -> {
+            String item = itemField.getText().trim();
+            String quantityText = quantityField.getText().trim();
+            String priceText = priceField.getText().trim();
 
-                String errorMsg = validate(item, quantityText, priceText);
-                if (!errorMsg.isEmpty()) {
-                    JOptionPane.showMessageDialog(frame, errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                int    quantity = Integer.parseInt(quantityText);
-                double price    = Double.parseDouble(priceText);
-
-                if (writeOrder(item, quantity, price)) {
-                    JOptionPane.showMessageDialog(frame, "\"" + item + "\" added to order.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    itemField.setText("");
-                    quantityField.setText("");
-                    priceField.setText("");
-                } else {
-                    JOptionPane.showMessageDialog(frame, "Failed to save order.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
+            String errorMsg = validate(item, quantityText, priceText);
+            if (!errorMsg.isEmpty()) {
+                JOptionPane.showMessageDialog(frame, errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
+                return;
             }
+
+            int    quantity = Integer.parseInt(quantityText);
+            double price    = Double.parseDouble(priceText);
+
+            addMenuItem(frame, menuItems, menuSet, item);
+            saveMenuToCSV(menuItems);
+
+            if (writeOrder(item, quantity, price)) {
+                JOptionPane.showMessageDialog(frame, "\"" + item + "\" added to order.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                itemField.setText("");
+                quantityField.setText("");
+                priceField.setText("");
+            } else {
+                JOptionPane.showMessageDialog(frame, "Failed to save order.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Delete Button
+        deleteButton.addActionListener(_ -> {
+            String item = itemField.getText().trim();
+
+            deleteMenuItem(frame, menuItems, menuSet, item);
+            saveMenuToCSV(menuItems);
         });
 
         // Clear button
-        clearButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                itemField.setText("");
-                quantityField.setText("");
-            }
+        clearButton.addActionListener(_ -> {
+            itemField.setText("");
+            quantityField.setText("");
         });
 
+        // View menu
+        viewMenuButton.addActionListener(_ -> displayMenu(frame, menuItems));
+
         // View order button
-        viewOrderButton.addActionListener(_ -> {
-            showOrdersTable(frame);
-        });
+        viewOrderButton.addActionListener(_ -> displayOrders(frame));
 
         // Compute Sales
         computeSalesButton.addActionListener( _ -> {
@@ -188,7 +204,7 @@ public class CafeOrderingSystemGUI {
             }
         });
 
-        frame.setSize(500, 200);
+        frame.setSize(600, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
@@ -389,8 +405,20 @@ public class CafeOrderingSystemGUI {
         return sb.toString().trim();
     }
 
-    // table window
-    private static void showOrdersTable(JFrame parent) {
+    // menu window
+    public static void displayMenu(JFrame frame, ArrayList<String> menuItems) {
+        if (menuItems.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "No menu items available.", "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Join items into a formatted string with line breaks
+        String menuDisplay = String.join("\n• ", menuItems);
+        JOptionPane.showMessageDialog(frame, "Current Café Menu:\n• " + menuDisplay, "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    // order window
+    private static void displayOrders(JFrame parent) {
         JFrame tableFrame = new JFrame("Orders — Café Ordering System");
 
         String[] columns = {"Item", "Qty", "Unit Price", "Total", "Date"};
@@ -520,12 +548,52 @@ public class CafeOrderingSystemGUI {
             );
         });
 
+        JButton deleteButton = new JButton("Delete Order");
+        deleteButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        deleteButton.addActionListener(_ -> {
+            int selectedRow = table.getSelectedRow();
+
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(
+                        tableFrame,
+                        "Please select an order to delete.",
+                        "No Selection",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            int confirm = JOptionPane.showConfirmDialog(
+                    tableFrame,
+                    "Delete selected order?",
+                    "Confirm Delete",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            deleteOrder(selectedRow);
+
+            addOrdersToTable(tableModel, totalLabel);
+
+            JOptionPane.showMessageDialog(
+                    tableFrame,
+                    "Order deleted successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
         JButton refreshButton = new JButton("↻  Refresh");
         refreshButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        refreshButton.addActionListener(e -> addOrdersToTable(tableModel, totalLabel));
+        refreshButton.addActionListener(_ -> addOrdersToTable(tableModel, totalLabel));
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.add(updateButton);
+        buttonPanel.add(deleteButton);
         buttonPanel.add(refreshButton);
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
@@ -594,4 +662,117 @@ public class CafeOrderingSystemGUI {
         else
             return 0;
     }
+
+    public static void loadMenu(JFrame frame, ArrayList<String> menuItems, HashSet<String> menuSet) {
+        File file = new File("menu.csv");
+
+        if (!file.exists()) {
+            try {
+                if (file.createNewFile()) {
+                    JOptionPane.showMessageDialog(frame,
+                            "menu.csv not found. A new empty menu file was created.",
+                            "Café Menu",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(frame,
+                        "Failed to create menu file: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            return;
+        }
+        try (BufferedReader br = new BufferedReader(new FileReader("menu.csv"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String item = line.trim();
+                menuItems.add(item);
+                menuSet.add(item);
+            }
+            JOptionPane.showMessageDialog(frame, "Menu loaded successfully!",
+                    "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(frame, "Error loading menu: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public static void addMenuItem(JFrame frame, ArrayList<String> menuItems, HashSet<String> menuSet, String newItem) {
+        if (menuSet.contains(newItem)) {
+            JOptionPane.showMessageDialog(frame,
+                    "Item already exists!",
+                    "Duplicate Entry",
+                    JOptionPane.WARNING_MESSAGE);
+        } else {
+            menuItems.add(newItem);
+            menuSet.add(newItem);
+            JOptionPane.showMessageDialog(frame,
+                    newItem + " added successfully!",
+                    "Item Added",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    public static void saveMenuToCSV(ArrayList<String> menuItems) {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("menu.csv"))) {
+            for (String item : menuItems) {
+                pw.println(item);
+            }
+            System.out.println("Menu saved successfully!");
+        } catch (IOException e) {
+            System.out.println("Error saving file: " + e.getMessage());
+        }
+    }
+
+    public static void deleteMenuItem(JFrame frame, ArrayList<String> menuItems, HashSet<String> menuSet, String itemToDelete) {
+        if (menuSet.contains(itemToDelete)) {
+            menuItems.remove(itemToDelete);
+            menuSet.remove(itemToDelete);
+            JOptionPane.showMessageDialog(frame,
+                    itemToDelete + " deleted successfully!",
+                    "Item Deleted",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(frame,
+                    "Item not found.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static void deleteOrder(int index) {
+        File file = new File("orders.csv");
+
+        if (!file.exists()) {
+            return;
+        }
+
+        List<String> lines = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                lines.add(line);
+            }
+        } catch (IOException e) {
+            return;
+        }
+
+        // remove selected row
+        if (index >= 0 && index < lines.size()) {
+            lines.remove(index);
+        }
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+            for (String line : lines) {
+                bw.write(line);
+                bw.newLine();
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 }
