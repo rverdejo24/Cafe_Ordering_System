@@ -760,9 +760,11 @@ public class CafeOrderingSystemGUI {
             return;
         }
 
+        int csvIndex = index + 1;
+
         // remove selected row
-        if (index >= 0 && index < lines.size()) {
-            lines.remove(index);
+        if (csvIndex >= 1 && index < lines.size()) {
+            lines.remove(csvIndex);
         }
 
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
