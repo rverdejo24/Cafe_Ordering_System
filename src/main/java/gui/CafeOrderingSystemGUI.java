@@ -162,7 +162,7 @@ public class CafeOrderingSystemGUI {
         viewMenuButton.addActionListener(_ -> displayMenu(frame, menuItems));
 
         // View order button
-        viewOrderButton.addActionListener(_ -> showOrdersTable(frame));
+        viewOrderButton.addActionListener(_ -> displayOrders(frame));
 
         // Compute Sales
         computeSalesButton.addActionListener( _ -> {
@@ -405,8 +405,20 @@ public class CafeOrderingSystemGUI {
         return sb.toString().trim();
     }
 
-    // table window
-    private static void showOrdersTable(JFrame parent) {
+    // menu window
+    public static void displayMenu(JFrame frame, ArrayList<String> menuItems) {
+        if (menuItems.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "No menu items available.", "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Join items into a formatted string with line breaks
+        String menuDisplay = String.join("\n• ", menuItems);
+        JOptionPane.showMessageDialog(frame, "Current Café Menu:\n• " + menuDisplay, "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    // order window
+    private static void displayOrders(JFrame parent) {
         JFrame tableFrame = new JFrame("Orders — Café Ordering System");
 
         String[] columns = {"Item", "Qty", "Unit Price", "Total", "Date"};
@@ -536,12 +548,52 @@ public class CafeOrderingSystemGUI {
             );
         });
 
+        JButton deleteButton = new JButton("Delete Order");
+        deleteButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        deleteButton.addActionListener(_ -> {
+            int selectedRow = table.getSelectedRow();
+
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(
+                        tableFrame,
+                        "Please select an order to delete.",
+                        "No Selection",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            int confirm = JOptionPane.showConfirmDialog(
+                    tableFrame,
+                    "Delete selected order?",
+                    "Confirm Delete",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            deleteOrder(selectedRow);
+
+            addOrdersToTable(tableModel, totalLabel);
+
+            JOptionPane.showMessageDialog(
+                    tableFrame,
+                    "Order deleted successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
         JButton refreshButton = new JButton("↻  Refresh");
         refreshButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         refreshButton.addActionListener(_ -> addOrdersToTable(tableModel, totalLabel));
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.add(updateButton);
+        buttonPanel.add(deleteButton);
         buttonPanel.add(refreshButton);
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
@@ -690,14 +742,37 @@ public class CafeOrderingSystemGUI {
         }
     }
 
-    public static void displayMenu(JFrame frame, ArrayList<String> menuItems) {
-        if (menuItems.isEmpty()) {
-            JOptionPane.showMessageDialog(frame, "No menu items available.", "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+    private static void deleteOrder(int index) {
+        File file = new File("orders.csv");
+
+        if (!file.exists()) {
             return;
         }
 
-        // Join items into a formatted string with line breaks
-        String menuDisplay = String.join("\n• ", menuItems);
-        JOptionPane.showMessageDialog(frame, "Current Café Menu:\n• " + menuDisplay, "Café Menu", JOptionPane.INFORMATION_MESSAGE);
+        List<String> lines = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                lines.add(line);
+            }
+        } catch (IOException e) {
+            return;
+        }
+
+        // remove selected row
+        if (index >= 0 && index < lines.size()) {
+            lines.remove(index);
+        }
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+            for (String line : lines) {
+                bw.write(line);
+                bw.newLine();
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
+
 }
