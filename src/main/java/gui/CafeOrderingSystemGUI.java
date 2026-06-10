@@ -281,6 +281,74 @@ public class CafeOrderingSystemGUI {
         return orders;
     }
 
+    private static void updateOrder(
+            int rowIndex,
+            String newItem,
+            int newQuantity,
+            double newPrice) {
+
+        List<String> lines = new ArrayList<>();
+
+        try (BufferedReader br =
+                     new BufferedReader(new FileReader(ORDER_FILE.toFile()))) {
+
+            String line;
+            int currentRow = -1;
+
+            while ((line = br.readLine()) != null) {
+
+                if (currentRow == -1) { // header
+                    lines.add(line);
+                    currentRow++;
+                    continue;
+                }
+
+                if (currentRow == rowIndex) {
+
+                    String[] data = splitCsvLine(line);
+
+                    String updatedLine =
+                            "\"" + newItem.replace("\"", "\"\"") + "\"" +
+                                    "," + newQuantity +
+                                    "," + String.format("%.2f", newPrice) +
+                                    "," + data[3];
+
+                    lines.add(updatedLine);
+                } else {
+                    lines.add(line);
+                }
+
+                currentRow++;
+            }
+
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Failed to update order: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        try (BufferedWriter bw =
+                     new BufferedWriter(new FileWriter(ORDER_FILE.toFile()))) {
+
+            for (String line : lines) {
+                bw.write(line);
+                bw.newLine();
+            }
+
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Failed to save updated order: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
     // Add to table
     private static void addOrdersToTable(DefaultTableModel tableModel, JLabel totalLabel) {
         tableModel.setRowCount(0);
@@ -383,16 +451,105 @@ public class CafeOrderingSystemGUI {
         totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         totalLabel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
 
+        JButton updateButton = new JButton("Update Order");
+        updateButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        updateButton.addActionListener(_ -> {
+            int selectedRow = table.getSelectedRow();
+
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(
+                        tableFrame,
+                        "Please select an order to update.",
+                        "No Selection",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            JTextField itemField = new JTextField(
+                    table.getValueAt(selectedRow, 0).toString()
+            );
+
+            JTextField quantityField = new JTextField(
+                    table.getValueAt(selectedRow, 1).toString()
+            );
+
+            JTextField priceField = new JTextField(
+                    table.getValueAt(selectedRow, 2)
+                            .toString()
+                            .replace("₱", "")
+            );
+
+            JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+
+            panel.add(new JLabel("Item Name:"));
+            panel.add(itemField);
+
+            panel.add(new JLabel("Quantity:"));
+            panel.add(quantityField);
+
+            panel.add(new JLabel("Price:"));
+            panel.add(priceField);
+
+            int result = JOptionPane.showConfirmDialog(
+                    tableFrame,
+                    panel,
+                    "Update Order",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE
+            );
+
+            if (result != JOptionPane.OK_OPTION) {
+                return;
+            }
+
+            String item = itemField.getText().trim();
+            String quantityStr = quantityField.getText().trim();
+            String priceStr = priceField.getText().trim();
+
+            String error = validate(item, quantityStr, priceStr);
+
+            if (!error.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        tableFrame,
+                        error,
+                        "Validation Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            updateOrder(
+                    selectedRow,
+                    item,
+                    Integer.parseInt(quantityStr),
+                    Double.parseDouble(priceStr)
+            );
+
+            addOrdersToTable(tableModel, totalLabel);
+
+            JOptionPane.showMessageDialog(
+                    tableFrame,
+                    "Order updated successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
         JButton refreshButton = new JButton("↻  Refresh");
         refreshButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         refreshButton.addActionListener(_ -> addOrdersToTable(tableModel, totalLabel));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(updateButton);
+        buttonPanel.add(refreshButton);
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(200, 200, 200)),
                 BorderFactory.createEmptyBorder(6, 6, 6, 6)));
         bottomPanel.add(totalLabel,    BorderLayout.WEST);
-        bottomPanel.add(refreshButton, BorderLayout.EAST);
+        bottomPanel.add(buttonPanel, BorderLayout.EAST);
 
         tableFrame.setLayout(new BorderLayout());
         tableFrame.add(scrollPane,  BorderLayout.CENTER);
@@ -410,7 +567,7 @@ public class CafeOrderingSystemGUI {
 
     // CSV utility
     private static String[] splitCsvLine(String line) {
-        java.util.List<String> tokens = new java.util.ArrayList<>();
+        List<String> tokens = new ArrayList<>();
         boolean inQuotes = false;
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < line.length(); i++) {
