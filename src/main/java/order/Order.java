@@ -12,12 +12,7 @@ public record Order (int orderNumber, String item, int quantity, double price, d
         Objects.requireNonNull(date, "date is null");
     }
 
-
     public static double calculateTotalAmount(int qty, double price) {
         return (double) qty * price;
     }
-
-    /*public void printReceipt() {
-        System.out.println("Order #" + orderNumber + " - Total: ₱" + totalAmount);
-    }*/
 }

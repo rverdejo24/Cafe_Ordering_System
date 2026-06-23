@@ -100,14 +100,14 @@ public class CafeOrderingSystemGUI {
         JButton clearButton = new JButton("Clear");
         JButton viewMenuButton = new JButton("View Menu");
         JButton viewOrderButton = new JButton("View Orders");
-        JButton computeSalesButton = new JButton("Compute Sales");
+        JButton computeSummaryButton = new JButton("Compute Sales");
 
         buttonPanel.add(addButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(clearButton);
         buttonPanel.add(viewMenuButton);
         buttonPanel.add(viewOrderButton);
-        buttonPanel.add(computeSalesButton);
+        buttonPanel.add(computeSummaryButton);
 
         frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));
         frame.add(mainPanel);
@@ -165,16 +165,22 @@ public class CafeOrderingSystemGUI {
         viewOrderButton.addActionListener(_ -> displayOrders(frame));
 
         // Compute Sales
-        computeSalesButton.addActionListener( _ -> {
+        computeSummaryButton.addActionListener( _ -> {
             List<Double> totals = new ArrayList<>();
-
+            List<Integer> totalQuantity = new ArrayList<>();
             List<Order> orders = readOrders();
+
+            if (validateIfEmpty(orders)) {
+                return;
+            }
 
             try {
                 for (Order order : orders) {
                     totals.add(order.total());
+                    totalQuantity.add(order.quantity());
                 }
 
+                int quantitySummary = computeTotalQuantity(totalQuantity);
                 double totalSales = computeTotalSales(totals);
                 double averageSale = computeAverageSale(totals);
                 double discount = computeDiscount(totalSales);
@@ -187,6 +193,7 @@ public class CafeOrderingSystemGUI {
                     output.append(order.item() + " x " + order.quantity() + " = ₱" + order.total() + "\n");
                 }
                 output.append("--------------------------------\n");
+                output.append("Total Quantity: " + quantitySummary + "\n");
                 output.append("Total Sales: ₱" + totalSales + "\n");
                 output.append("Average Sale: ₱" + averageSale + "\n");
                 output.append("Discount: ₱" + discount + "\n");
@@ -197,6 +204,8 @@ public class CafeOrderingSystemGUI {
                         "Sales Computation", JOptionPane.INFORMATION_MESSAGE
                 );
 
+            } catch (IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(null, "No items in the list.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(
                         null, "Error reading file: " + e.getMessage()
@@ -204,7 +213,7 @@ public class CafeOrderingSystemGUI {
             }
         });
 
-        frame.setSize(600, 200);
+        frame.setSize(800, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
@@ -405,6 +414,15 @@ public class CafeOrderingSystemGUI {
         return sb.toString().trim();
     }
 
+    private static <T> boolean validateIfEmpty(List<T> arrays) {
+        if (arrays.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "No items in the list.", "Error", JOptionPane.ERROR_MESSAGE);
+            return true;
+        }
+
+        return false;
+    }
+
     // menu window
     public static void displayMenu(JFrame frame, ArrayList<String> menuItems) {
         if (menuItems.isEmpty()) {
@@ -462,6 +480,10 @@ public class CafeOrderingSystemGUI {
         JLabel totalLabel = new JLabel("Grand Total: ₱0.00");
         totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         totalLabel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+
+        JButton generateSummaryButton = new JButton("Generate Summary");
+        generateSummaryButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        generateSummaryButton.addActionListener(_ -> {});
 
         JButton updateButton = new JButton("Update Order");
         updateButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -648,6 +670,17 @@ public class CafeOrderingSystemGUI {
         for (double t : totals)
             total += t;
         return total;
+    }
+
+    // Count the total quantity of orders
+    private static int computeTotalQuantity(List<Integer> quantity) {
+        int totalQuantity = 0;
+
+        for (Integer item : quantity) {
+            totalQuantity += item;
+        }
+
+        return totalQuantity;
     }
 
     // Calculates average sale value
