@@ -162,7 +162,15 @@ public class CafeOrderingSystemGUI {
         viewMenuButton.addActionListener(_ -> displayMenu(frame, menuItems));
 
         // View order button
-        viewOrderButton.addActionListener(_ -> displayOrders(frame));
+        viewOrderButton.addActionListener(_ -> {
+            List<Order> orders = readOrders();
+
+            if (validateIfEmpty(orders)) {
+                return;
+            }
+
+            displayOrders(frame);
+        });
 
         // Compute Sales
         computeSummaryButton.addActionListener( _ -> {
@@ -195,7 +203,7 @@ public class CafeOrderingSystemGUI {
                 output.append("--------------------------------\n");
                 output.append("Total Quantity: " + quantitySummary + "\n");
                 output.append("Total Sales: ₱" + totalSales + "\n");
-                output.append("Average Sale: ₱" + averageSale + "\n");
+                output.append("Average Sale(per order type): ₱" + averageSale + "\n");
                 output.append("Discount: ₱" + discount + "\n");
                 output.append("Final Amount: ₱" + finalAmount + "\n\n");
 
